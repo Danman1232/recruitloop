@@ -1,0 +1,7 @@
+Command Prompts:
+
+cd %USERPROFILE%\Documents\recruitloop-app
+
+npm start
+
+npm run mock-api

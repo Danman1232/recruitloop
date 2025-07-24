@@ -1,0 +1,38 @@
+{
+  "dashboard": {
+    "wallet": 5000,
+    "activeJobs": 3,
+    "totalOpenJobs": 7,
+    "pendingResumes": 5
+  },
+  "jobs": [
+    { "id": "1", "title": "Detroit Service Technician", "stage": "in-progress" },
+    { "id": "2", "title": "NYC Fullstack Engineer",     "stage": "hiring"    },
+    { "id": "3", "title": "Chicago Sales Manager",      "stage": "past"      },
+    { "id": "4", "title": "SF Data Scientist",          "stage": "draft"     }
+  ],
+  "submissions": [
+    { "id": "a1", "jobId": "1", "looper": "John Smith", "name": "Phil Jones" },
+    { "id": "b2", "jobId": "1", "looper": "Jane Doe",   "name": "Alex Lee"   }
+  ],
+  "candidates": {
+    "a1": {
+      "id": "a1",
+      "name": "Phil Jones",
+      "summary": "Motivated and skilled Overhead Crane Technician with extensive experience…",
+      "experience": [
+        {
+          "title": "Overhead Crane Technician",
+          "company": "Crane & Hoist Plus – Detroit, MI",
+          "dates": "Aug 2021 – Present",
+          "duties": [
+            "Specializing in electric motor controls (AC) and overhead crane service.",
+            "Designing, wiring, and installing electrical control panels.",
+            "Troubleshoot and repair customer equipment.",
+            "Conduct crane installations and sales."
+          ]
+        }
+      ]
+    }
+  }
+}

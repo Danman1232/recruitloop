@@ -1,0 +1,37 @@
+# dependencies
+/node_modules/
+/package-lock.json
+/yarn.lock
+
+# build output
+/build/
+/dist/
+
+# local env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE/editor folders
+.vscode/
+.idea/
+
+# json‐server mock DB
+/db.json
+
+# coverage reports
+/coverage/
+
+# misc
+*.log
