@@ -292,3 +292,9 @@ export async function updateJobAssignment(jobId, { recruiterId }) {
   if (!res.ok) throw new Error("Failed to update assignment");
   return res.json();
 }
+export async function getPendingSubmissions() {
+  const res = await fetch(`http://localhost:4000/submissions?status=pending`);
+  if (!res.ok) throw new Error("Failed to load pending submissions");
+  return res.json();
+}
+
