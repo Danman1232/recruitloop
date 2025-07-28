@@ -9,7 +9,7 @@ export default function Jobs() {
         <h2 className="text-3xl font-bold">All Jobs</h2>
       </header>
       <section>
-        <JobsTable allowedStages={['in-progress','hiring','past','draft']} />
+        <JobsTable allowedStages={['active','hiring','past','draft']} />
       </section>
     </main>
   );

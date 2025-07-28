@@ -26,13 +26,13 @@ export default function CompanyJobs() {
   }, [])
 
   const categories = [
-    { label: 'Active', value: 'in-progress' },
-    { label: 'Open',   value: 'hiring'      },
-    { label: 'Closed', value: 'past'        },
-    { label: 'Drafts', value: 'draft'       },
-  ]
+  { label: 'Active', value: 'active' },
+  { label: 'Open',   value: 'open'   },
+  { label: 'Closed', value: 'closed' },
+  { label: 'Drafts', value: 'draft'  },
+];
 
-  const filtered = jobs.filter(job => job.stage === filter)
+  const filtered = jobs.filter(job => job.stage === filter);
 
   if (loading) return <p className="p-8">Loading jobs…</p>
   if (error)   return <p className="p-8 text-red-600">{error}</p>
@@ -107,7 +107,7 @@ export default function CompanyJobs() {
             {filtered.length === 0 && (
               <tr>
                 <td colSpan="8" className="p-3 text-center text-gray-600">
-                  No {categories.find(c => c.value === filter).label} jobs.
+                  No {(categories.find(c => c.value === filter)?.label || 'Filtered')} jobs.
                 </td>
               </tr>
             )}

@@ -2,11 +2,17 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getPendingSubmissions, updateSubmission } from '../services/api';
+import {
+  getPendingSubmissions,
+  updateSubmission,
+  getActiveJobs,
+  updateJob
+} from '../services/api';
 
 export default function Dashboard() {
   const [pending, setPending] = useState([]);
   const [loadingPend, setLoadingPend] = useState(true);
+  const [activeJobs, setActiveJobs] = useState([]);
 
   useEffect(() => {
     (async () => {
@@ -21,9 +27,31 @@ export default function Dashboard() {
     })();
   }, []);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const jobs = await getActiveJobs();
+        setActiveJobs(jobs);
+      } catch (err) {
+        console.error('Failed to fetch active jobs', err);
+      }
+    })();
+  }, []);
+
   async function handleStatusChange(id, status) {
     try {
-      await updateSubmission(id, { status });
+      const updatedSub = await updateSubmission(id, { status });
+
+      // If accepted, update the job's stage to "active"
+      if (status === 'accepted' && updatedSub?.jobId) {
+        await updateJob(updatedSub.jobId, { stage: 'active' });
+
+        // Refresh active jobs list
+        const jobs = await getActiveJobs();
+        setActiveJobs(jobs);
+      }
+
+      // Remove from pending view
       setPending(prev => prev.filter(c => c.id !== id));
     } catch (err) {
       console.error("Failed to update status", err);
@@ -51,7 +79,7 @@ export default function Dashboard() {
           </div>
           <div className="bg-white p-4 rounded shadow">
             <h4 className="text-sm text-gray-500">Active Jobs</h4>
-            <p className="text-xl font-semibold text-blue-500">06</p>
+            <p className="text-xl font-semibold text-blue-500">{activeJobs.length.toString().padStart(2, '0')}</p>
           </div>
           <div className="bg-white p-4 rounded shadow">
             <h4 className="text-sm text-gray-500">Open Jobs</h4>
@@ -73,12 +101,10 @@ export default function Dashboard() {
                   key={sub.id}
                   className="bg-white p-3 rounded shadow grid grid-cols-7 items-start gap-4 text-sm"
                 >
-                  {/* Checkbox */}
                   <div className="col-span-1 flex justify-center pt-6">
                     <input type="checkbox" className="form-checkbox w-4 h-4 text-blue-600" />
                   </div>
 
-                  {/* Looper */}
                   <div className="col-span-1 text-center">
                     <span className="text-xs font-semibold block mb-1">Looper</span>
                     <div className="flex flex-col items-center mt-2">
@@ -92,25 +118,21 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  {/* Job Title */}
                   <div className="col-span-1 text-center">
                     <span className="text-xs font-semibold block mb-1">Job Title</span>
                     <p className="mt-2">{sub.jobTitle}</p>
                   </div>
 
-                  {/* Location */}
                   <div className="col-span-1 text-center">
                     <span className="text-xs font-semibold block mb-1">Location</span>
                     <p className="mt-2">{sub.jobLocation}</p>
                   </div>
 
-                  {/* Pay */}
                   <div className="col-span-1 text-center">
                     <span className="text-xs font-semibold block mb-1">Pay</span>
                     <p className="mt-2">{sub.targetPay}</p>
                   </div>
 
-                  {/* Resume */}
                   <div className="col-span-1 text-center">
                     <span className="text-xs font-semibold block mb-1">Resume</span>
                     <button onClick={() => handleViewResume(sub.resumeName)} className="mt-2">
@@ -122,7 +144,6 @@ export default function Dashboard() {
                     </button>
                   </div>
 
-                  {/* Actions */}
                   <div className="col-span-1 text-center">
                     <span className="text-xs font-semibold block mb-1">Action</span>
                     <div className="flex items-center justify-center gap-2 mt-2">
@@ -148,23 +169,45 @@ export default function Dashboard() {
                   </div>
                 </div>
               ))}
-              {/* View All */}
               <div className="text-right mt-2">
-                <Link
-                  to="/submissions"
-                  className="text-blue-600 hover:underline text-sm"
-                >
+                <Link to="/submissions" className="text-blue-600 hover:underline text-sm">
                   View All →
                 </Link>
               </div>
             </div>
           )}
         </section>
+
+        {/* Active Jobs */}
+        <section className="mb-6">
+          <h3 className="text-2xl font-semibold mb-4">Active Jobs</h3>
+          {activeJobs.length === 0 ? (
+            <p className="text-gray-500">No active jobs with candidates in the pipeline.</p>
+          ) : (
+            <ul className="space-y-2">
+              {activeJobs.slice(0, 5).map(job => (
+                <li
+                  key={job.id}
+                  className="bg-white p-4 rounded shadow flex justify-between items-center"
+                >
+                  <div>
+                    <p className="font-semibold text-lg">{job.title}</p>
+                    <p className="text-sm text-gray-500">
+                      {job.location} &bull; {job.payRateFrom}–{job.payRateTo}/hr
+                    </p>
+                  </div>
+                  <Link to={`/jobs/${job.id}/pipeline`} className="text-blue-600 hover:underline text-sm">
+                    View Pipeline →
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
 
       {/* Right sidebar */}
       <aside className="w-1/4 space-y-6">
-        {/* Notifications */}
         <div className="bg-white p-4 rounded shadow">
           <h4 className="text-lg font-semibold mb-3">Notifications</h4>
           <ul className="space-y-2 text-sm">
@@ -179,7 +222,6 @@ export default function Dashboard() {
           </ul>
         </div>
 
-        {/* Contact List */}
         <div className="bg-white p-4 rounded shadow">
           <h4 className="text-lg font-semibold mb-3">Contact List</h4>
           <ul className="space-y-3 text-sm">

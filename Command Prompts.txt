@@ -5,3 +5,11 @@ cd %USERPROFILE%\Documents\recruitloop-app
 npm start
 
 npm run mock-api
+
+GitHub:
+
+git add .
+
+git commit -m "describe your change"
+
+git push

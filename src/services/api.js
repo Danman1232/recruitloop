@@ -1,8 +1,5 @@
-// src/services/api.js
 
-// Base URL for your mock API server
 const API = "http://localhost:4000";
-
 /**
  * Dashboard Data
  */
@@ -11,6 +8,7 @@ export async function getDashboardData() {
   if (!res.ok) throw new Error("Failed to load dashboard data");
   return res.json();
 }
+// (Truncated for brevity in this example)
 
 /**
  * Jobs
@@ -30,9 +28,7 @@ export async function getJob(jobId) {
 export async function searchJobs(filters = {}) {
   const qs = Object.entries(filters)
     .filter(([, v]) => v && v.trim())
-    .map(
-      ([k, v]) => `${encodeURIComponent(k)}_like=${encodeURIComponent(v)}`
-    )
+    .map(([k, v]) => `${encodeURIComponent(k)}_like=${encodeURIComponent(v)}`)
     .join("&");
   const url = `${API}/jobs?stage=hiring${qs ? "&" + qs : ""}`;
   const res = await fetch(url);
@@ -72,9 +68,7 @@ export async function deleteJob(jobId) {
  * Submissions / Pipeline
  */
 export async function getPipeline(jobId) {
-  const res = await fetch(
-    `${API}/submissions?jobId=${encodeURIComponent(jobId)}`
-  );
+  const res = await fetch(`${API}/submissions?jobId=${encodeURIComponent(jobId)}`);
   if (!res.ok) throw new Error("Failed to load submissions");
   return res.json();
 }
@@ -96,25 +90,33 @@ export async function submitCandidate(data) {
 }
 
 export async function updateSubmission(subId, data) {
-  const res = await fetch(
-    `${API}/submissions/${encodeURIComponent(subId)}`,
-    {
+  const res = await fetch(`${API}/submissions/${encodeURIComponent(subId)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) throw new Error("Failed to update submission");
+  const updatedSubmission = await res.json();
+
+  // ✅ When accepted, set the job stage to "active"
+  if (data.status === 'accepted') {
+    const jobRes = await fetch(`${API}/jobs/${encodeURIComponent(updatedSubmission.jobId)}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    }
-  );
-  if (!res.ok) throw new Error("Failed to update submission");
-  return res.json();
+      body: JSON.stringify({ stage: "active" }),
+    });
+    if (!jobRes.ok) throw new Error("Failed to update job stage to active");
+  }
+
+  return updatedSubmission;
 }
 
 /**
  * Candidates (Resume Viewer)
  */
 export async function getCandidate(candId) {
-  const res = await fetch(
-    `${API}/candidates/${encodeURIComponent(candId)}`
-  );
+  const res = await fetch(`${API}/candidates/${encodeURIComponent(candId)}`);
   if (!res.ok) throw new Error("Failed to load candidate");
   return res.json();
 }
@@ -132,32 +134,27 @@ export async function createCompany(data) {
   return res.json();
 }
 
-/**
- * Signup a new company + its company-admin user
- */
 export async function signupCompany({ firstName, lastName, email, password, domain }) {
-  // 1) create the company record
   const compRes = await fetch(`${API}/companies`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      name:    `${firstName} ${lastName}`,
-      ein:     "",        // you can pass real EIN if collected later
+      name: `${firstName} ${lastName}`,
+      ein: "",
       website: "",
-      domain
+      domain,
     }),
   });
   if (!compRes.ok) throw new Error("Failed to create company");
   const company = await compRes.json();
 
-  // 2) create the company-admin user
   const userRes = await fetch(`${API}/users`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       email,
       password,
-      role:      "company",
+      role: "company",
       companyId: company.id,
       firstName,
       lastName,
@@ -168,7 +165,7 @@ export async function signupCompany({ firstName, lastName, email, password, doma
 }
 
 /**
- * Authentication / Admin Signup (legacy)
+ * Authentication
  */
 export async function adminSignup(data) {
   const res = await fetch(`${API}/admins`, {
@@ -181,12 +178,10 @@ export async function adminSignup(data) {
 }
 
 /**
- * Agency Recruiters (sub-accounts)
+ * Agency Recruiters
  */
 export async function getAgencyRecruiters(agencyId) {
-  const res = await fetch(
-    `${API}/agencyRecruiters?agencyId=${encodeURIComponent(agencyId)}`
-  );
+  const res = await fetch(`${API}/agencyRecruiters?agencyId=${encodeURIComponent(agencyId)}`);
   if (!res.ok) throw new Error("Could not load recruiters");
   return res.json();
 }
@@ -201,9 +196,6 @@ export async function inviteRecruiter(data) {
   return res.json();
 }
 
-/**
- * Register a recruiter as a real user
- */
 export async function signupRecruiter({ email, password, agencyId, firstName, lastName }) {
   const res = await fetch(`${API}/users`, {
     method: "POST",
@@ -211,10 +203,10 @@ export async function signupRecruiter({ email, password, agencyId, firstName, la
     body: JSON.stringify({
       username: email,
       password,
-      role:       "agency_recruiter",
+      role: "agency_recruiter",
       agencyId,
       firstName,
-      lastName
+      lastName,
     }),
   });
   if (!res.ok) throw new Error("Sign-up failed");
@@ -222,7 +214,7 @@ export async function signupRecruiter({ email, password, agencyId, firstName, la
 }
 
 /**
- * Agencies (for Agency Admin portal)
+ * Agencies
  */
 export async function getAgencies() {
   const res = await fetch(`${API}/agencies`);
@@ -240,17 +232,14 @@ export async function createAgency(data) {
   return res.json();
 }
 
-/**
- * Register a new agency-admin user
- */
 export async function signupAgencyAdmin({ email, password, agencyId, firstName, lastName }) {
   const res = await fetch(`${API}/users`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      username:  email,
+      username: email,
       password,
-      role:      "agency_admin",
+      role: "agency_admin",
       agencyId,
       firstName,
       lastName,
@@ -260,9 +249,6 @@ export async function signupAgencyAdmin({ email, password, agencyId, firstName, 
   return res.json();
 }
 
-/**
- * Delete an agency recruiter by ID
- */
 export async function deleteAgencyRecruiter(id) {
   const res = await fetch(`${API}/agencyRecruiters/${encodeURIComponent(id)}`, {
     method: "DELETE",
@@ -271,18 +257,12 @@ export async function deleteAgencyRecruiter(id) {
   return res.json();
 }
 
-/**
- * Fetch all jobs assigned to this agency (or public ones)
- */
 export async function getAgencyJobs(agencyId) {
   const res = await fetch(`${API}/jobs?agencyId=${encodeURIComponent(agencyId)}`);
   if (!res.ok) throw new Error("Failed to load agency jobs");
   return res.json();
 }
 
-/**
- * Assign (or unassign) a recruiter to a job
- */
 export async function updateJobAssignment(jobId, { recruiterId }) {
   const res = await fetch(`${API}/jobs/${encodeURIComponent(jobId)}`, {
     method: "PATCH",
@@ -292,9 +272,25 @@ export async function updateJobAssignment(jobId, { recruiterId }) {
   if (!res.ok) throw new Error("Failed to update assignment");
   return res.json();
 }
+
+/**
+ * Dashboard widgets
+ */
 export async function getPendingSubmissions() {
-  const res = await fetch(`http://localhost:4000/submissions?status=pending`);
+  const res = await fetch(`${API}/submissions?status=pending`);
   if (!res.ok) throw new Error("Failed to load pending submissions");
   return res.json();
 }
 
+export async function getActiveJobs() {
+  const [jobs, submissions] = await Promise.all([
+    fetch(`${API}/jobs`).then(res => res.json()),
+    fetch(`${API}/submissions?status=accepted`).then(res => res.json())
+  ]);
+
+  const activeJobIds = new Set(submissions.map(sub => sub.jobId));
+
+  return jobs.filter(job =>
+    activeJobIds.has(job.id) && job.stage === "active"
+  );
+}

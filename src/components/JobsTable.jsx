@@ -1,80 +1,67 @@
 // src/components/JobsTable.jsx
-import React, { useState, useEffect, useContext } from 'react'
-import { Link } from 'react-router-dom'
-import { getJobs, updateJob, deleteJob } from '../services/api'
-import { AuthContext } from '../auth/AuthContext'
+import React, { useState, useEffect, useContext } from 'react';
+import { Link } from 'react-router-dom';
+import { getJobs, updateJob, deleteJob } from '../services/api';
+import { AuthContext } from '../auth/AuthContext';
 
-// All possible tabs
+// Tabs: Match stage values used in backend logic
 const ALL_TABS = [
-  { label: 'Active',   value: 'in-progress' },
-  { label: 'Open',     value: 'hiring'      },
-  { label: 'Closed',   value: 'past'        },
-  { label: 'Drafts',   value: 'draft'       },
-]
+  { label: 'Active',   value: 'active' },
+  { label: 'Open',     value: 'hiring' },
+  { label: 'Closed',   value: 'past' },
+  { label: 'Drafts',   value: 'draft' },
+];
 
-/**
- * Props:
- *   - allowedStages: array of stage‐values to show in tabs (defaults to ALL)
- *   - fetchJobs:     optional async fn to load jobs (falls back to getJobs())
- */
 export default function JobsTable({
   allowedStages = ALL_TABS.map(t => t.value),
   fetchJobs
 }) {
-  const { user } = useContext(AuthContext)
-  const isAgency = user?.role === 'agency_admin' || user?.role === 'agency_recruiter'
+  const { user } = useContext(AuthContext);
+  const isAgency = user?.role === 'agency_admin' || user?.role === 'agency_recruiter';
 
-  // Filter the tabs down to only those you want
-  const tabs = ALL_TABS.filter(t => allowedStages.includes(t.value))
-  const [selectedTab, setSelectedTab] = useState(tabs[0].value)
+  const tabs = ALL_TABS.filter(t => allowedStages.includes(t.value));
+  const [selectedTab, setSelectedTab] = useState(tabs[0].value);
 
-  const [jobs, setJobs]       = useState([])
-  const [loading, setLoading] = useState(true)
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // load on mount (and if fetchJobs changes)
   useEffect(() => {
     async function load() {
-      setLoading(true)
+      setLoading(true);
       try {
-        const data = fetchJobs
-          ? await fetchJobs()
-          : await getJobs()
-        setJobs(data)
+        const data = fetchJobs ? await fetchJobs() : await getJobs();
+        setJobs(data);
       } catch (err) {
-        console.error('Failed to load jobs', err)
+        console.error('Failed to load jobs', err);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     }
-    load()
-  }, [fetchJobs])
+    load();
+  }, [fetchJobs]);
 
-  // Only show jobs in the selected stage
-  const visibleJobs = jobs.filter(j => j.stage === selectedTab)
+  const visibleJobs = jobs.filter(j => j.stage === selectedTab);
 
-  // Change a job’s stage (e.g. “close”, “reopen”, “publish”)
   const changeStage = async (id, newStage) => {
-    setJobs(js => js.map(j => j.id === id ? { ...j, stage: newStage } : j))
+    setJobs(js => js.map(j => j.id === id ? { ...j, stage: newStage } : j));
     try {
-      await updateJob(id, { stage: newStage })
+      await updateJob(id, { stage: newStage });
     } catch (err) {
-      console.error('Failed to update job', err)
+      console.error('Failed to update job', err);
     }
-  }
+  };
 
-  // Permanently delete a job
   const handleDelete = async id => {
-    setJobs(js => js.filter(j => j.id !== id))
+    setJobs(js => js.filter(j => j.id !== id));
     try {
-      await deleteJob(id)
+      await deleteJob(id);
     } catch (err) {
-      console.error('Failed to delete job', err)
+      console.error('Failed to delete job', err);
     }
-  }
+  };
 
   return (
     <div className="space-y-4">
-      {/* Tabs (only show when there’s more than one) */}
       {tabs.length > 1 && (
         <ul className="flex space-x-6 border-b mb-4">
           {tabs.map(tab => (
@@ -93,7 +80,6 @@ export default function JobsTable({
         </ul>
       )}
 
-      {/* Table */}
       {loading ? (
         <p>Loading jobs…</p>
       ) : visibleJobs.length === 0 ? (
@@ -129,15 +115,12 @@ export default function JobsTable({
                 </td>
                 <td className="px-4 py-2 text-center">{job.priority || '-'}</td>
                 <td className="px-4 py-2 flex justify-center space-x-2">
-                  {/* Active & Open */}
                   {(job.stage === 'in-progress' || job.stage === 'hiring') && (
                     <>
                       <Link
-                        to={
-                          isAgency
-                            ? `/agency/jobs/${job.id}/submit`
-                            : `/jobs/${job.id}/pipeline`
-                        }
+                        to={isAgency
+                          ? `/agency/jobs/${job.id}/submit`
+                          : `/jobs/${job.id}/pipeline`}
                         className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
                       >
                         {isAgency ? 'Submit' : 'Candidates'}
@@ -151,7 +134,6 @@ export default function JobsTable({
                     </>
                   )}
 
-                  {/* Closed */}
                   {job.stage === 'past' && (
                     <>
                       <button
@@ -169,7 +151,6 @@ export default function JobsTable({
                     </>
                   )}
 
-                  {/* Drafts (only for companies) */}
                   {job.stage === 'draft' && (
                     <>
                       <Link
@@ -193,5 +174,5 @@ export default function JobsTable({
         </table>
       )}
     </div>
-  )
+  );
 }

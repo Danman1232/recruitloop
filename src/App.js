@@ -76,6 +76,8 @@ export default function App() {
               <Route path="dashboard/jobs"        element={<CompanyJobs />} />
               <Route path="dashboard/submissions" element={<CompanySubmissions />} />
               <Route path="jobs/new"              element={<PostJob />} />
+	      <Route path="jobs/:jobId/pipeline"  element={<Pipeline />} />
+   	      <Route path="jobs/:jobId/candidates/:candId/resume" element={<ResumeViewer />} />
             </Route>
           </Route>
 
