@@ -1,42 +1,25 @@
 // src/pages/Pipeline.jsx
-import React, { useState, useEffect }        from 'react';
-import { Link, useParams }                   from 'react-router-dom';
-import { getPipeline, updateSubmission }     from '../services/api';
+import React, { useState, useEffect } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { getPipeline, updateSubmission } from '../services/api';
+import { getStageColor, formatStageLabel } from '../utils/stageHelpers';
 
 const STAGES = [
-  { id: 'submitted', label: 'Submitted Resumes' },
-  { id: 'accepted',  label: 'Accepted Resumes'  },
-  { id: 'interviews', label: 'Interviews', children: [
-      { id: 'phone', label: 'Phone Screen'       },
-      { id: 'onsite',label: 'On-Site Interview' }
-    ]
-  },
-  { id: 'offers', label: 'Offers', children: [
-      { id: 'sent',    label: 'Offer Sent'      },
-      { id: 'approved',label: 'Offer Accepted' }
-    ]
-  },
-  { id: 'placed', label: 'Placed Candidates', children: [
-      { id: 'pending',   label: 'Pending'       },
-      { id: 'confirmed', label: 'Confirmed'     }
-    ]
-  },
+  { id: 'pending', label: 'Submissions' },
+  { id: 'accepted', label: 'Accepted' },
+  { id: 'phone_interview', label: 'Phone Interview' },
+  { id: 'in_person', label: 'In Person Interview' },
+  { id: 'offer_sent', label: 'Offer Sent' },
+  { id: 'offer_accepted', label: 'Offer Accepted' },
+  { id: 'placed', label: 'Placed' },
+  { id: 'declined', label: 'Declined' },
 ];
 
 export default function Pipeline() {
   const { jobId } = useParams();
-
-  const [stage, setStage]       = useState('submitted');
-  const [subs, setSubs]         = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [filters, setFilters]   = useState({
-    phone: true,
-    onsite: true,
-    sent: true,
-    approved: true,
-    pending: true,
-    confirmed: true
-  });
+  const [stage, setStage] = useState('pending');
+  const [subs, setSubs] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
@@ -51,80 +34,36 @@ export default function Pipeline() {
     load();
   }, [jobId]);
 
-  let displaySubs = [];
-  if (stage === 'submitted') {
-    displaySubs = subs.filter(s => !s.status);
-  } else if (stage === 'accepted') {
-    displaySubs = subs.filter(s => s.status === 'accepted');
-  } else if (stage === 'interviews') {
-    displaySubs = subs.filter(s =>
-      (filters.phone   && s.interviewStage === 'phone') ||
-      (filters.onsite  && s.interviewStage === 'onsite')
-    );
-  } else if (stage === 'offers') {
-    displaySubs = subs.filter(s =>
-      (filters.sent     && s.offerStage === 'sent')    ||
-      (filters.approved && s.offerStage === 'approved')
-    );
-  } else if (stage === 'placed') {
-    displaySubs = subs.filter(s =>
-      (filters.pending    && s.placementStage === 'pending')   ||
-      (filters.confirmed  && s.placementStage === 'confirmed')
-    );
-  }
+  const displaySubs = subs.filter((s) => s.stage === stage);
 
-  async function handleAction(id, action) {
-    await updateSubmission(id, { status: action });
-    setSubs(subs.map(s => s.id === id ? { ...s, status: action } : s));
+  async function handleAction(id, stage, status) {
+    await updateSubmission(id, { stage, status });
+    setSubs(subs.map(s => s.id === id ? { ...s, stage, status } : s));
   }
 
   return (
     <div className="h-screen flex">
-      {/* ── Sub-Sidebar ── */}
+      {/* Sidebar */}
       <nav className="w-64 bg-white p-6 border-r">
-        {STAGES.map(st => (
-          <div key={st.id} className="mb-6">
-            <button
-              onClick={() => setStage(st.id)}
-              className={`flex items-center w-full py-2 text-left ${
-                stage === st.id
-                  ? 'text-brand-blue font-semibold'
-                  : 'text-gray-700 hover:text-brand-blue'
-              }`}
-            >
-              <span className="inline-block w-6 h-6 mr-2 flex items-center justify-center rounded-full bg-brand-blue text-white">
-                {STAGES.findIndex(x => x.id === st.id) + 1}
-              </span>
-              {st.label}
-            </button>
-
-            {st.children && (
-              <div className="ml-8 mt-2 space-y-2">
-                {st.children.map(ch => (
-                  <label key={ch.id} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={filters[ch.id]}
-                      onChange={() =>
-                        setFilters(f => ({ ...f, [ch.id]: !f[ch.id] }))
-                      }
-                    />
-                    <span className={
-                      filters[ch.id]
-                        ? 'text-brand-blue font-medium'
-                        : 'text-gray-500'
-                    }>
-                      {ch.label}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
+        {STAGES.map((st, idx) => (
+          <button
+            key={st.id}
+            onClick={() => setStage(st.id)}
+            className={`flex items-center w-full py-2 text-left mb-3 ${
+              stage === st.id
+                ? 'text-brand-blue font-semibold'
+                : 'text-gray-700 hover:text-brand-blue'
+            }`}
+          >
+            <span className={`inline-block w-6 h-6 mr-2 flex items-center justify-center rounded-full bg-brand-blue text-white`}>
+              {idx + 1}
+            </span>
+            {st.label}
+          </button>
         ))}
       </nav>
 
-      {/* ── Main Content ── */}
+      {/* Main Content */}
       <main className="flex-1 bg-gray-100 p-8 overflow-auto">
         <header className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">
@@ -141,7 +80,9 @@ export default function Pipeline() {
                 <th className="p-4 w-12">Select</th>
                 <th className="p-4 text-left">Looper</th>
                 <th className="p-4 text-left">Candidate</th>
-                <th className="p-4">Actions</th>
+                <th className="p-4 text-left">Stage</th>
+                <th className="p-4 text-left">Status</th>
+                <th className="p-4 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -152,6 +93,12 @@ export default function Pipeline() {
                   </td>
                   <td className="p-4">{s.looper}</td>
                   <td className="p-4">{s.name}</td>
+                  <td className="p-4">
+                    <span className={`text-white px-2 py-1 rounded text-sm ${getStageColor(s.stage)}`}>
+                      {formatStageLabel(s.stage)}
+                    </span>
+                  </td>
+                  <td className="p-4 text-sm text-gray-600">{s.status}</td>
                   <td className="p-4 space-x-2 text-center">
                     <Link
                       to={`/jobs/${jobId}/candidates/${s.id}/resume`}
@@ -160,16 +107,16 @@ export default function Pipeline() {
                       📄 View
                     </Link>
 
-                    {stage === 'submitted' && (
+                    {stage === 'pending' && (
                       <>
                         <button
-                          onClick={() => handleAction(s.id, 'accepted')}
+                          onClick={() => handleAction(s.id, 'accepted', 'Pending Phone Interview')}
                           className="bg-green-500 text-white px-2 py-1 rounded"
                         >
                           Accept
                         </button>
                         <button
-                          onClick={() => handleAction(s.id, 'declined')}
+                          onClick={() => handleAction(s.id, 'declined', 'Candidate Declined')}
                           className="bg-red-500 text-white px-2 py-1 rounded"
                         >
                           Decline
@@ -178,8 +125,63 @@ export default function Pipeline() {
                     )}
 
                     {stage === 'accepted' && (
-                      <button className="bg-orange-500 text-white px-2 py-1 rounded">
-                        Request Interview
+                      <button
+                        onClick={() => {
+                          const date = prompt("Enter phone interview date (e.g., Aug 2)");
+                          if (date)
+                            handleAction(s.id, 'phone_interview', `Phone Screen ${date}`);
+                        }}
+                        className="bg-orange-500 text-white px-2 py-1 rounded"
+                      >
+                        Schedule Phone Screen
+                      </button>
+                    )}
+
+                    {stage === 'phone_interview' && (
+                      <button
+                        onClick={() => {
+                          const date = prompt("Enter in-person interview date:");
+                          if (date)
+                            handleAction(s.id, 'in_person', `In Person ${date}`);
+                        }}
+                        className="bg-green-600 text-white px-2 py-1 rounded"
+                      >
+                        Schedule In Person
+                      </button>
+                    )}
+
+                    {stage === 'in_person' && (
+                      <button
+                        onClick={() => handleAction(s.id, 'offer_sent', 'Offer Sent')}
+                        className="bg-blue-500 text-white px-2 py-1 rounded"
+                      >
+                        Send Offer
+                      </button>
+                    )}
+
+                    {stage === 'offer_sent' && (
+                      <button
+                        onClick={() => {
+                          const date = prompt("Enter start date:");
+                          if (date)
+                            handleAction(s.id, 'offer_accepted', `Offer Accepted - Starting ${date}`);
+                        }}
+                        className="bg-blue-600 text-white px-2 py-1 rounded"
+                      >
+                        Mark Offer Accepted
+                      </button>
+                    )}
+
+                    {stage === 'offer_accepted' && (
+                      <button
+                        onClick={() => {
+                          const date = prompt("Enter actual start date:");
+                          if (date)
+                            handleAction(s.id, 'placed', `Started ${date}`);
+                        }}
+                        className="bg-indigo-600 text-white px-2 py-1 rounded"
+                      >
+                        Mark as Started
                       </button>
                     )}
                   </td>
