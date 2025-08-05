@@ -8,6 +8,8 @@ npm run mock-api
 
 GitHub:
 
+git status
+
 git add .
 
 git commit -m "describe your change"

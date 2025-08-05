@@ -5,16 +5,16 @@ import { getAllSubmissions, updateSubmission } from '../services/api';
 import { getStageColor, formatStageLabel } from '../utils/stageHelpers';
 
 const STAGES = [
-  { label: 'Submitted',            value: 'pending' },
-  { label: 'Accepted',             value: 'accepted'  },
+  { label: 'Submitted', value: 'pending' },
+  { label: 'Accepted', value: 'accepted' },
   { header: 'Interview' },
-  { label: 'Phone Interview',      value: 'phone_interview',   indent: true },
-  { label: 'In-Person Interview',  value: 'in_person', indent: true },
+  { label: 'Phone Interview', value: 'phone_interview', indent: true },
+  { label: 'In-Person Interview', value: 'in_person', indent: true },
   { header: 'Offer' },
-  { label: 'Offer Sent',           value: 'offer_sent', indent: true },
-  { label: 'Offer Accepted',       value: 'offer_accepted', indent: true },
-  { label: 'Placed',               value: 'placed' },
-  { label: 'Declined',             value: 'declined' },
+  { label: 'Offer Sent', value: 'offer_sent', indent: true },
+  { label: 'Offer Accepted', value: 'offer_accepted', indent: true },
+  { label: 'Placed', value: 'placed' },
+  { label: 'Declined', value: 'declined' },
 ];
 
 export default function CompanySubmissions() {
@@ -46,15 +46,25 @@ export default function CompanySubmissions() {
 
   const rows = subs.filter(s => (s.stage || s.status) === stage);
 
+  // Dynamic column header
+  const dateHeader =
+    stage === 'offer_sent' ||
+    stage === 'offer_accepted' ||
+    stage === 'placed'
+      ? 'Start Date'
+      : 'Interview Date';
+
   return (
     <main className="flex-1 flex h-screen bg-gray-100 overflow-hidden">
-      {/* Sidebar */}
       <nav className="w-56 bg-white border-r h-full">
         <div className="px-4 pt-4">
           <h3 className="text-gray-500 text-sm uppercase mb-2">Stages</h3>
           {STAGES.map((item, i) =>
             item.header ? (
-              <p key={i} className="mt-6 mb-2 text-xs font-semibold text-gray-500 uppercase">
+              <p
+                key={i}
+                className="mt-6 mb-2 text-xs font-semibold text-gray-500 uppercase"
+              >
                 {item.header}
               </p>
             ) : (
@@ -74,7 +84,6 @@ export default function CompanySubmissions() {
         </div>
       </nav>
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="px-6 pt-6 pb-4">
           <h2 className="text-3xl font-bold">Submissions</h2>
@@ -97,6 +106,7 @@ export default function CompanySubmissions() {
                   <th className="px-4 py-2 text-left">Location</th>
                   <th className="px-4 py-2 text-left">Submitted</th>
                   <th className="px-4 py-2 text-left">Stage</th>
+                  <th className="px-4 py-2 text-center">{dateHeader}</th>
                   <th className="px-4 py-2 text-center">Resume</th>
                   <th className="px-4 py-2 text-center">Actions</th>
                 </tr>
@@ -114,9 +124,27 @@ export default function CompanySubmissions() {
                       {new Date(s.submissionDate || s.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-2">
-                      <span className={`text-white px-2 py-1 rounded text-sm ${getStageColor(s.stage || s.status)}`}>
+                      <span
+                        className={`text-white px-2 py-1 rounded text-sm ${
+                          getStageColor(s.stage || s.status)
+                        }`}
+                      >
                         {formatStageLabel(s.stage || s.status)}
                       </span>
+                    </td>
+                    <td className="px-4 py-2 text-center">
+                      {(s.status === 'phone_interview' ||
+                        s.status === 'in_person' ||
+                        s.status === 'offer_sent' ||
+                        s.status === 'offer_accepted' ||
+                        s.status === 'placed') && (
+                        <button
+                          onClick={() => { /* placeholder for schedule modal */ }}
+                          className="bg-orange-500 text-white px-2 py-1 rounded"
+                        >
+                          Schedule
+                        </button>
+                      )}
                     </td>
                     <td className="px-4 py-2 text-center">
                       {s.resumeUrl ? (
@@ -191,30 +219,72 @@ export default function CompanySubmissions() {
                         </>
                       )}
 
-                      {s.status?.startsWith('interview') && s.status !== 'phone_interview' && (
-                        <button
-                          onClick={() => patch(s.id, { status: 'offer_sent' })}
-                          className="bg-blue-600 text-white px-2 py-1 rounded"
-                        >
-                          Send Offer
-                        </button>
+                      {s.status === 'in_person' && (
+                        <>
+                          <button
+                            onClick={() => patch(s.id, { status: 'offer_sent' })}
+                            className="bg-green-500 text-white px-2 py-1 rounded"
+                          >
+                            Advance
+                          </button>
+                          <button
+                            onClick={() => {
+                              const fb = prompt('Please provide feedback:');
+                              if (fb !== null) patch(s.id, { status: 'declined', feedback: fb });
+                            }}
+                            className="bg-red-500 text-white px-2 py-1 rounded"
+                          >
+                            Decline
+                          </button>
+                        </>
                       )}
 
-                      {s.status?.startsWith('offer') && (
-                        <button
-                          onClick={() => patch(s.id, { status: 'placed' })}
-                          className="bg-green-500 text-white px-2 py-1 rounded"
-                        >
-                          Accept Offer
-                        </button>
+                      {s.status === 'offer_sent' && (
+                        <>
+                          <button
+                            onClick={() => patch(s.id, { status: 'offer_accepted' })}
+                            className="bg-green-500 text-white px-2 py-1 rounded"
+                          >
+                            Accept Offer
+                          </button>
+                          <button
+                            onClick={() => {
+                              const fb = prompt('Please provide feedback:');
+                              if (fb !== null) patch(s.id, { status: 'declined', feedback: fb });
+                            }}
+                            className="bg-red-500 text-white px-2 py-1 rounded"
+                          >
+                            Decline
+                          </button>
+                        </>
+                      )}
+
+                      {s.status === 'offer_accepted' && (
+                        <>
+                          <button
+                            onClick={() => patch(s.id, { status: 'placed' })}
+                            className="bg-green-500 text-white px-2 py-1 rounded"
+                          >
+                            Confirm Start
+                          </button>
+                          <button
+                            onClick={() => {
+                              const fb = prompt('Please provide feedback:');
+                              if (fb !== null) patch(s.id, { status: 'declined', feedback: fb });
+                            }}
+                            className="bg-red-500 text-white px-2 py-1 rounded"
+                          >
+                            Decline
+                          </button>
+                        </>
                       )}
 
                       {s.status === 'placed' && (
                         <button
-                          onClick={() => patch(s.id, { status: 'completed' })}
-                          className="bg-indigo-600 text-white px-2 py-1 rounded"
+                          onClick={() => patch(s.id, { status: 'declined', feedback: '' })}
+                          className="bg-red-500 text-white px-2 py-1 rounded"
                         >
-                          Confirm Start
+                          Remove
                         </button>
                       )}
 
@@ -235,7 +305,6 @@ export default function CompanySubmissions() {
         </div>
       </div>
 
-      {/* Resume Modal */}
       {selected && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
@@ -263,7 +332,12 @@ export default function CompanySubmissions() {
               >
                 <p className="p-4">
                   Your browser doesn’t support embedded PDFs.<br />
-                  <a href={selected.resumeUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+                  <a
+                    href={selected.resumeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 underline"
+                  >
                     Download PDF
                   </a>
                 </p>
