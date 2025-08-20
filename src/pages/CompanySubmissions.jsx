@@ -1,7 +1,7 @@
 // src/pages/CompanySubmissions.jsx
 
-import React, { useState, useEffect } from 'react';
-import { getAllSubmissions, updateSubmission } from '../services/api';
+import React, { useState, useEffect, useMemo } from 'react';
+import { getAllSubmissions, updateSubmission, getJobs } from '../services/api';
 import { getStageColor, formatStageLabel } from '../utils/stageHelpers';
 
 const STAGES = [
@@ -19,16 +19,49 @@ const STAGES = [
 
 export default function CompanySubmissions() {
   const [subs, setSubs] = useState([]);
+  const [jobs, setJobs] = useState([]); // NEW: jobs to derive location
   const [stage, setStage] = useState('pending');
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
 
+  // helpers for id + string handling
+  const normalize = v => (v ?? '').toString().trim().toLowerCase();
+  const toKey     = v => (v == null ? '' : String(v));
+  const getJobId = j => toKey(j?.id ?? j?.jobId ?? j?._id ?? j?.job_id ?? j?.uuid ?? j?.key);
+  const getSubmissionJobId = s =>
+    toKey(s?.jobId ?? s?.job_id ?? s?.job?.id ?? s?.job?.jobId ?? s?.job?._id);
+
+  // Build a fast lookup: jobId -> job
+  const jobsById = useMemo(() => {
+    const m = new Map();
+    for (const j of jobs) {
+      const id = getJobId(j);
+      if (id) m.set(id, j);
+    }
+    return m;
+  }, [jobs]);
+
+  // Prefer a single "location" field; otherwise compose City, State
+  const jobLocation = job => {
+    if (!job) return '';
+    const composed = [job.city ?? job.jobCity, job.state ?? job.jobState]
+      .filter(Boolean)
+      .join(', ');
+    return job.location ?? job.jobLocation ?? composed ?? '';
+  };
+
   useEffect(() => {
     (async () => {
       try {
-        setSubs(await getAllSubmissions());
+        // NEW: load jobs alongside submissions
+        const [subsData, jobsData] = await Promise.all([
+          getAllSubmissions(),
+          getJobs(),
+        ]);
+        setSubs(subsData || []);
+        setJobs(jobsData || []);
       } catch {
-        console.error('Failed to load submissions');
+        console.error('Failed to load submissions/jobs');
       } finally {
         setLoading(false);
       }
@@ -112,193 +145,202 @@ export default function CompanySubmissions() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {rows.map(s => (
-                  <tr key={s.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-2">{s.looper}</td>
-                    <td className="px-4 py-2">{s.name}</td>
-                    <td className="px-4 py-2">{s.phone}</td>
-                    <td className="px-4 py-2">{s.email}</td>
-                    <td className="px-4 py-2">{s.jobTitle}</td>
-                    <td className="px-4 py-2">{s.location}</td>
-                    <td className="px-4 py-2">
-                      {new Date(s.submissionDate || s.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-2">
-                      <span
-                        className={`text-white px-2 py-1 rounded text-sm ${
-                          getStageColor(s.stage || s.status)
-                        }`}
-                      >
-                        {formatStageLabel(s.stage || s.status)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 text-center">
-                      {(s.status === 'phone_interview' ||
-                        s.status === 'in_person' ||
-                        s.status === 'offer_sent' ||
-                        s.status === 'offer_accepted' ||
-                        s.status === 'placed') && (
-                        <button
-                          onClick={() => { /* placeholder for schedule modal */ }}
-                          className="bg-orange-500 text-white px-2 py-1 rounded"
+                {rows.map(s => {
+                  // NEW: derive location from the job if not present on the submission
+                  const derivedLoc =
+                    s.location ||
+                    s.jobLocation ||
+                    jobLocation(jobsById.get(getSubmissionJobId(s))) ||
+                    '—';
+
+                  return (
+                    <tr key={s.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-2">{s.looper}</td>
+                      <td className="px-4 py-2">{s.name}</td>
+                      <td className="px-4 py-2">{s.phone}</td>
+                      <td className="px-4 py-2">{s.email}</td>
+                      <td className="px-4 py-2">{s.jobTitle}</td>
+                      <td className="px-4 py-2">{derivedLoc}</td>
+                      <td className="px-4 py-2">
+                        {new Date(s.submissionDate || s.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-2">
+                        <span
+                          className={`text-white px-2 py-1 rounded text-sm ${
+                            getStageColor(s.stage || s.status)
+                          }`}
                         >
-                          Schedule
-                        </button>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 text-center">
-                      {s.resumeUrl ? (
-                        <button
-                          onClick={() => setSelected(s)}
-                          className="text-gray-600 hover:text-gray-900 text-xl"
-                        >
-                          📄
-                        </button>
-                      ) : (
-                        <span className="text-gray-300">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 text-center space-x-2">
-                      {(s.status === 'submitted' || s.status === 'pending') && (
-                        <>
+                          {formatStageLabel(s.stage || s.status)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-center">
+                        {(s.status === 'phone_interview' ||
+                          s.status === 'in_person' ||
+                          s.status === 'offer_sent' ||
+                          s.status === 'offer_accepted' ||
+                          s.status === 'placed') && (
                           <button
-                            onClick={() => patch(s.id, { status: 'accepted' })}
-                            className="bg-green-500 text-white px-2 py-1 rounded"
+                            onClick={() => { /* placeholder for schedule modal */ }}
+                            className="bg-orange-500 text-white px-2 py-1 rounded"
                           >
-                            Accept
+                            Schedule
                           </button>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-center">
+                        {s.resumeUrl ? (
                           <button
-                            onClick={() => {
-                              const fb = prompt('Please provide feedback:');
-                              if (fb !== null) patch(s.id, { status: 'declined', feedback: fb });
-                            }}
+                            onClick={() => setSelected(s)}
+                            className="text-gray-600 hover:text-gray-900 text-xl"
+                          >
+                            📄
+                          </button>
+                        ) : (
+                          <span className="text-gray-300">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-center space-x-2">
+                        {(s.status === 'submitted' || s.status === 'pending') && (
+                          <>
+                            <button
+                              onClick={() => patch(s.id, { status: 'accepted' })}
+                              className="bg-green-500 text-white px-2 py-1 rounded"
+                            >
+                              Accept
+                            </button>
+                            <button
+                              onClick={() => {
+                                const fb = prompt('Please provide feedback:');
+                                if (fb !== null) patch(s.id, { status: 'declined', feedback: fb });
+                              }}
+                              className="bg-red-500 text-white px-2 py-1 rounded"
+                            >
+                              Decline
+                            </button>
+                          </>
+                        )}
+
+                        {s.status === 'accepted' && (
+                          <>
+                            <button
+                              onClick={() => patch(s.id, { status: 'phone_interview' })}
+                              className="bg-green-500 text-white px-2 py-1 rounded"
+                            >
+                              Advance
+                            </button>
+                            <button
+                              onClick={() => {
+                                const fb = prompt('Please provide feedback:');
+                                if (fb !== null) patch(s.id, { status: 'declined', feedback: fb });
+                              }}
+                              className="bg-red-500 text-white px-2 py-1 rounded"
+                            >
+                              Decline
+                            </button>
+                          </>
+                        )}
+
+                        {s.status === 'phone_interview' && (
+                          <>
+                            <button
+                              onClick={() => patch(s.id, { status: 'in_person' })}
+                              className="bg-green-500 text-white px-2 py-1 rounded"
+                            >
+                              Advance
+                            </button>
+                            <button
+                              onClick={() => {
+                                const fb = prompt('Please provide feedback:');
+                                if (fb !== null) patch(s.id, { status: 'declined', feedback: fb });
+                              }}
+                              className="bg-red-500 text-white px-2 py-1 rounded"
+                            >
+                              Decline
+                            </button>
+                          </>
+                        )}
+
+                        {s.status === 'in_person' && (
+                          <>
+                            <button
+                              onClick={() => patch(s.id, { status: 'offer_sent' })}
+                              className="bg-green-500 text-white px-2 py-1 rounded"
+                            >
+                              Advance
+                            </button>
+                            <button
+                              onClick={() => {
+                                const fb = prompt('Please provide feedback:');
+                                if (fb !== null) patch(s.id, { status: 'declined', feedback: fb });
+                              }}
+                              className="bg-red-500 text-white px-2 py-1 rounded"
+                            >
+                              Decline
+                            </button>
+                          </>
+                        )}
+
+                        {s.status === 'offer_sent' && (
+                          <>
+                            <button
+                              onClick={() => patch(s.id, { status: 'offer_accepted' })}
+                              className="bg-green-500 text-white px-2 py-1 rounded"
+                            >
+                              Accept Offer
+                            </button>
+                            <button
+                              onClick={() => {
+                                const fb = prompt('Please provide feedback:');
+                                if (fb !== null) patch(s.id, { status: 'declined', feedback: fb });
+                              }}
+                              className="bg-red-500 text-white px-2 py-1 rounded"
+                            >
+                              Decline
+                            </button>
+                          </>
+                        )}
+
+                        {s.status === 'offer_accepted' && (
+                          <>
+                            <button
+                              onClick={() => patch(s.id, { status: 'placed' })}
+                              className="bg-green-500 text-white px-2 py-1 rounded"
+                            >
+                              Confirm Start
+                            </button>
+                            <button
+                              onClick={() => {
+                                const fb = prompt('Please provide feedback:');
+                                if (fb !== null) patch(s.id, { status: 'declined', feedback: fb });
+                              }}
+                              className="bg-red-500 text-white px-2 py-1 rounded"
+                            >
+                              Decline
+                            </button>
+                          </>
+                        )}
+
+                        {s.status === 'placed' && (
+                          <button
+                            onClick={() => patch(s.id, { status: 'declined', feedback: '' })}
                             className="bg-red-500 text-white px-2 py-1 rounded"
                           >
-                            Decline
+                            Remove
                           </button>
-                        </>
-                      )}
+                        )}
 
-                      {s.status === 'accepted' && (
-                        <>
+                        {s.status === 'declined' && (
                           <button
-                            onClick={() => patch(s.id, { status: 'phone_interview' })}
-                            className="bg-green-500 text-white px-2 py-1 rounded"
+                            onClick={() => patch(s.id, { status: 'submitted', feedback: '' })}
+                            className="bg-orange-500 text-white px-2 py-1 rounded"
                           >
-                            Advance
+                            Reassign
                           </button>
-                          <button
-                            onClick={() => {
-                              const fb = prompt('Please provide feedback:');
-                              if (fb !== null) patch(s.id, { status: 'declined', feedback: fb });
-                            }}
-                            className="bg-red-500 text-white px-2 py-1 rounded"
-                          >
-                            Decline
-                          </button>
-                        </>
-                      )}
-
-                      {s.status === 'phone_interview' && (
-                        <>
-                          <button
-                            onClick={() => patch(s.id, { status: 'in_person' })}
-                            className="bg-green-500 text-white px-2 py-1 rounded"
-                          >
-                            Advance
-                          </button>
-                          <button
-                            onClick={() => {
-                              const fb = prompt('Please provide feedback:');
-                              if (fb !== null) patch(s.id, { status: 'declined', feedback: fb });
-                            }}
-                            className="bg-red-500 text-white px-2 py-1 rounded"
-                          >
-                            Decline
-                          </button>
-                        </>
-                      )}
-
-                      {s.status === 'in_person' && (
-                        <>
-                          <button
-                            onClick={() => patch(s.id, { status: 'offer_sent' })}
-                            className="bg-green-500 text-white px-2 py-1 rounded"
-                          >
-                            Advance
-                          </button>
-                          <button
-                            onClick={() => {
-                              const fb = prompt('Please provide feedback:');
-                              if (fb !== null) patch(s.id, { status: 'declined', feedback: fb });
-                            }}
-                            className="bg-red-500 text-white px-2 py-1 rounded"
-                          >
-                            Decline
-                          </button>
-                        </>
-                      )}
-
-                      {s.status === 'offer_sent' && (
-                        <>
-                          <button
-                            onClick={() => patch(s.id, { status: 'offer_accepted' })}
-                            className="bg-green-500 text-white px-2 py-1 rounded"
-                          >
-                            Accept Offer
-                          </button>
-                          <button
-                            onClick={() => {
-                              const fb = prompt('Please provide feedback:');
-                              if (fb !== null) patch(s.id, { status: 'declined', feedback: fb });
-                            }}
-                            className="bg-red-500 text-white px-2 py-1 rounded"
-                          >
-                            Decline
-                          </button>
-                        </>
-                      )}
-
-                      {s.status === 'offer_accepted' && (
-                        <>
-                          <button
-                            onClick={() => patch(s.id, { status: 'placed' })}
-                            className="bg-green-500 text-white px-2 py-1 rounded"
-                          >
-                            Confirm Start
-                          </button>
-                          <button
-                            onClick={() => {
-                              const fb = prompt('Please provide feedback:');
-                              if (fb !== null) patch(s.id, { status: 'declined', feedback: fb });
-                            }}
-                            className="bg-red-500 text-white px-2 py-1 rounded"
-                          >
-                            Decline
-                          </button>
-                        </>
-                      )}
-
-                      {s.status === 'placed' && (
-                        <button
-                          onClick={() => patch(s.id, { status: 'declined', feedback: '' })}
-                          className="bg-red-500 text-white px-2 py-1 rounded"
-                        >
-                          Remove
-                        </button>
-                      )}
-
-                      {s.status === 'declined' && (
-                        <button
-                          onClick={() => patch(s.id, { status: 'submitted', feedback: '' })}
-                          className="bg-orange-500 text-white px-2 py-1 rounded"
-                        >
-                          Reassign
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}

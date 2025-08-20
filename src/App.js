@@ -28,6 +28,7 @@ import Dashboard          from './pages/Dashboard';
 import CompanySubmissions from './pages/CompanySubmissions';
 import CompanyJobs        from './pages/CompanyJobs';
 import PostJob            from './pages/PostJob';
+import EditJob            from './pages/EditJob';
 
 // looper
 import LooperDashboard   from './pages/LooperDashboard';
@@ -78,6 +79,7 @@ export default function App() {
               <Route path="jobs/new"              element={<PostJob />} />
 	      <Route path="jobs/:jobId/pipeline"  element={<Pipeline />} />
    	      <Route path="jobs/:jobId/candidates/:candId/resume" element={<ResumeViewer />} />
+              <Route path="/jobs/:jobId/edit"     element={<EditJob />} />
             </Route>
           </Route>
 
